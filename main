@@ -1,0 +1,119 @@
+from telegram import Update, ReplyKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, ConversationHandler, ContextTypes
+from telegram.ext.filters import TEXT
+
+# Define states for conversation
+COUNTRY, CITY, OPTION = range(3)
+
+# Define data structure for countries and cities
+locations = {
+    "B.V.I": ["Road Town", "Spanish Town", "Great Harbour"],
+    "France": ["Paris", "Lyon", "Nice", "Marseille", "Bordeaux"],
+    "Italy": ["Rome", "Milan", "Venice", "Florence", "Naples"],
+    "Grenadines": ["Kingstown", "Port Elizabeth", "Clifton"],
+    "Munich": [],  # City, no additional options
+    "Mexico - La Paz": ["La Paz", "Cabo San Lucas", "Todos Santos"],
+    "Bora Bora": ["Vaitape"],  # Main settlement in Bora Bora
+    "Switzerland": ["Zurich", "Geneva", "Bern", "Lausanne", "Lucerne"],
+    "England - Ascot": ["Ascot", "London", "Manchester", "Birmingham"],
+}
+
+# Start command
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    reply_keyboard = [[country] for country in locations.keys()]
+    await update.message.reply_text(
+        "Welcome! Choose a country or location:",
+        reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+    )
+    return COUNTRY
+
+# Handle country selection
+async def country_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    selected_country = update.message.text
+    context.user_data["country"] = selected_country
+
+    cities = locations.get(selected_country, [])
+    if cities:  # If cities exist for this country
+        reply_keyboard = [[city] for city in cities]
+        await update.message.reply_text(
+            f"Choose a city in {selected_country}:",
+            reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+        )
+        return CITY
+    else:  # No cities, move to options directly
+        return await option_selection(update, context)
+
+# Handle city selection
+async def city_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    selected_city = update.message.text
+    context.user_data["city"] = selected_city
+    return await option_selection(update, context)
+
+# Present options
+async def option_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    reply_keyboard = [
+        ["1. Videos and Photos", "2. Details about the Location"],
+        ["3. Technical Page"],
+    ]
+    await update.message.reply_text(
+        "Choose an option:",
+        reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+    )
+    return OPTION
+
+# Handle final option
+async def handle_option(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    selected_option = update.message.text
+    country = context.user_data.get("country", "Unknown")
+    city = context.user_data.get("city", "Unknown")
+
+    if selected_option == "1. Videos and Photos":
+        await update.message.reply_text(f"Here are videos and photos of {city}, {country}!")
+    elif selected_option == "2. Details about the Location":
+        await update.message.reply_text(f"Here are 5 points about {city}, {country}!")
+    elif selected_option == "5. Technical Page":
+        await update.message.reply_text(f"Technical details for {city}, {country} are as follows...")
+    else:
+        await update.message.reply_text("Invalid option selected.")
+
+    return ConversationHandler.END
+
+# Cancel handler
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Operation cancelled. Use /start to try again.")
+    return ConversationHandler.END
+
+# Main function
+def main():
+    # Initialize the bot with your token
+    application = Application.builder().token("7768290825:AAFH6vbkMnTJ_wkIr4EB0OLvi1C2aqz2JgU").build()
+
+    # Define conversation handler
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("start", start)],
+        states={
+            COUNTRY: [MessageHandler(TEXT, country_selection)],
+            CITY: [MessageHandler(TEXT, city_selection)],
+            OPTION: [MessageHandler(TEXT, handle_option)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+
+    # Add handler to application
+    application.add_handler(conv_handler)
+
+    # Run the bot
+    application.run_polling()
+
+if __name__ == "__main__":
+    main()
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print("Received /start command")  # Add this to debug
+    reply_keyboard = [[country] for country in locations.keys()]
+    await update.message.reply_text(
+        "Welcome! Choose a country or location:",
+        reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+    )
+    return COUNTRY
+
+
